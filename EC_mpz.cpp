@@ -84,7 +84,7 @@ void bits_inv(vector<mpz_class> *bits, int r){
     }
 } //for문 돌면서 벡터에 저장하므로 원래 비트의 역순으로 저장됨
 
-void EC_mult(EC E, Point *R, POint P, mpz_class r) {
+void EC_mult(EC E, Point *R, Point P, mpz_class r) {
     vector<mpz_class> bits;
     mpz_class n;
 
@@ -103,7 +103,7 @@ void EC_mult(EC E, Point *R, POint P, mpz_class r) {
 mpz_class mod_inv(mpz_class x, mpz_class mod){
     mpz_class r;
     if(mpz_invert(r.get_mpz_t(), x.get_mpz_t(), mod.get_mpz_t())==0)
-        cout << "error: an inverse doesn't exitst" << endl
+        cout << "error: an inverse doesn't exsist" << endl
     return r;
 }
 
