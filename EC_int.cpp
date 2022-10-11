@@ -33,7 +33,9 @@ int mod_inv(int x, int mod){
         }
 
         for (r=0; r<mod; r++){
-            return r;
+            if((r*x)%mod == 1){
+                return r;
+            }
         }
 
         return -1; //no inverse exists
@@ -84,7 +86,7 @@ void EC_double(EC E, Point *R, Point P){
 
             R-> x = r*r -2*P.x;
             while(R->x<0){
-            R->x += E.p;
+                R->x += E.p;
             }
             R->x %= E.p;
 

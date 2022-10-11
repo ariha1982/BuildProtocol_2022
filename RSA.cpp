@@ -94,10 +94,9 @@ void RSA_keygen(RSA_PK *pk, PSA_SK *sk, int key_size){
     if(gcd(pk->e, ell)!=1)
     {
         pk->e =nextprime(pk->e);
-    } else {
-        sk->3 = pk->e;
-        sk->d = mod_inv(pk->e, ell);
     }
+    sk->e = pk->e;
+    sk->d = mod_inv(pk->e, ell);
 }
 
 mpz_class gcd(mpz_class a, mpz_class b){

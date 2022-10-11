@@ -2,6 +2,9 @@
 #include <iostream>
 
 using namespace std;
+mpz_class powm(mpz_class base, mpz_class exp, mpz_class mod); //함수를 먼저 다 올려놔야 얘가 인식함(이런)
+mpz_class urandomm(gmp_randstate_t state, const mpz_class n);
+int cmp(mpz_class A, mpz_class B);
 
 int main()
 {
