@@ -149,6 +149,8 @@ mpz_class mod_inv(mpz_class x, mpz_class mod){
     mpz_class r;
     if(x==0)
         return 0;
+    else if(mod<0)
+        return -1;
     else {
         mpz_invert(r.get_mpz_t(), x.get_mpz_t(), mod.get_mpz_t());
         return r;
