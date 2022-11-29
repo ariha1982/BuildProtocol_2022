@@ -4,6 +4,9 @@
 
 using namespace std;
 
+#define ROUND 10 //라운드 수(AES-128)
+#define N 4 //key size in words
+
 void shift_rows(unsigned char *msg);
 void inv_shift_rows(unsigned char *msg);
 void sub_bytes(unsigned char *msg);
@@ -16,21 +19,26 @@ void print_state(unsigned char *msg);
 void AES_decrypt(unsigned char *ct, unsigned char *key, unsigned char *msg);
 void AES_encrypt(unsigned char *msg, unsigned char *key, unsigned char *ct);
 
-#define ROUND 10 //라운드 수(AES-128)
-#define N 4 //key size in words
-
 int main(){
     unsigned char msg[16] = {0x04, 0x00, 0x12, 0x18,
                             0x02, 0x11, 0x18, 0x0F,
                             0x13, 0x0E, 0x06, 0x11,
                             0x00, 0x0F, 0x07, 0x18};
     
-    print_state(msg);
-    mix_columns(msg);
+    unsigned char key[16] = {0x54, 0x68, 0x61, 0x74,
+							0x73, 0x20, 0x6D, 0x79,
+							0x20, 0x4B, 0x75, 0x6E,
+							0x67, 0x20, 0x46, 0x75};
+	
+	unsigned char ct[16];
+
 	print_state(msg);
-	inv_mix_columns(msg);
+    AES_encrypt(msg, key, ct);
+	print_state(ct);
+	AES_decrypt(ct, key, msg);
 	print_state(msg);
-    
+
+	return 0;
 }
 
 void print_state(unsigned char *msg)
@@ -321,7 +329,7 @@ void AES_encrypt(unsigned char *msg, unsigned char *key, unsigned char *ct)
 void AES_decrypt(unsigned char *ct, unsigned char *key, unsigned char *msg)
 {
 	unsigned char round_key[ROUND+1][16];
-	memcpy(ct, msg, 16);
+	memcpy(msg, ct, 16);
 
 	key_schedule(key, round_key);
 	add_round_key(msg, round_key, ROUND);
@@ -330,7 +338,7 @@ void AES_decrypt(unsigned char *ct, unsigned char *key, unsigned char *msg)
 	{
 		inv_shift_rows(msg);
 		inv_sub_bytes(msg);
-		add_round_key(msg);
+		add_round_key(msg, round_key, i);
 		inv_mix_columns(msg);
 	}
 
