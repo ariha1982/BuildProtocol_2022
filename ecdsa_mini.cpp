@@ -59,11 +59,11 @@ int main(){
     struct ECDSA_PK pk;
     struct ECDSA_SK sk;
     struct ECDSA_SIG sig;
-    mpz_class msg{"0x24315"};
+    mpz_class msg{"0x10"};
     bool rop;
 
     ECDSA_keygen(&pk, &sk);
-    sig = CDSA_sign(sk, msg);
+    sig = ECDSA_sign(sk, msg);
     rop = ECDSA_verify(pk, sig, msg);
 
     if(rop==true){
@@ -73,6 +73,7 @@ int main(){
     } else {
         cout<< "error: rop is something worng" << endl;
     }
+    return 0;
 }
 
 mpz_class urandomm(gmp_randstate_t state, const mpz_class n)
@@ -88,7 +89,7 @@ void EC_mult(EC E, Point *R, Point P, mpz_class r){
 
     if(r<=0)
         cout << "error" << endl;
-    else
+    else {
         bits_inv(&bits, r);
         n = bits.size();
 
@@ -100,6 +101,7 @@ void EC_mult(EC E, Point *R, Point P, mpz_class r){
             if(bits.at(n-2)==1)
                 EC_add(E, R, *R, P);
         }
+    }
 }
 
 void bits_inv(vector<int> *bits, mpz_class r){
@@ -124,25 +126,34 @@ void EC_add(EC E, Point *R, Point P, Point Q){
     } else if (Q.x==0 && Q.y==0){
         *R = P;
     } else if(P.x==Q.x && P.y==Q.y){
-        EC_double(E, R, *R);
+        EC_double(E, R, P);
     } else {
         xtemp = Q.x - P.x; //0의 곱셈의 역원을 구하지 않도록 처리 필요
         xtemp = mod(xtemp, E.p);
-        xtemp = mod_inv(xtemp, E.p);
-        ytemp = Q.y - P.y;
-        ytemp = mod(ytemp, E.p);
-        r = xtemp*ytemp;
-        r = mod(r, E.p);
+        if(xtemp != 0) {
+            xtemp = mod_inv(xtemp, E.p);
+        }
 
-        Rx = (r*r - P.x - Q.x);
-        Rx = mod(Rx, E.p);
-        R->x = Rx;
+        if(xtemp == 0){ //infinity
+            R->x = 0;
+            R->y = 0;
+        } else if (xtemp < 0) { //Question. 왜 여기가 r인가?
+            cout << "error" << endl;
+        } else {
+            ytemp = Q.y - P.y;
+            ytemp = mod(ytemp, E.p);
+            r = xtemp*ytemp;
+            r = mod(r, E.p);
 
-        Ry = r*(P.x - Rx) - P.y;
-        Ry = mod(Ry, E.p);
-        R->y = Ry;
+            Rx = (r*r - P.x - Q.x);
+            Rx = mod(Rx, E.p);
+            R->x = Rx;
+
+            Ry = r*(P.x - Rx) - P.y;
+            Ry = mod(Ry, E.p);
+            R->y = Ry;
+        }
     }
-    
 }
 
 mpz_class mod_inv(mpz_class x, mpz_class mod){
@@ -163,18 +174,27 @@ void EC_double(EC E, Point *R, Point P){
     ytemp = 2*P.y;
     ytemp = mod(ytemp, E.p);
     ytemp = mod_inv(ytemp, E.p);
-    xtemp = (3*P.x*P.x) + E.a;
-    xtemp = mod(xtemp, E.p);
-    r = xtemp * ytemp;
-    r = mod(r, E.p);
 
-    Rx = r*r - (2*P.x);
-    Rx = mod(Rx, E.p);
-    R->x = Rx;
+    if(ytemp == 0)//infinity
+    {
+        R->x = 0;
+        R->y = 0;
+    } else if(ytemp < 0) {
+        cout << "error" << endl;
+    } else {
+        xtemp = (3*P.x*P.x) + E.a;
+        xtemp = mod(xtemp, E.p);
+        r = xtemp * ytemp;
+        r = mod(r, E.p);
 
-    Ry = r*(P.x - Rx) - P.y;
-    Ry = mod(Ry, E.p);
-    R -> y = Ry;
+        Rx = r*r - (2*P.x);
+        Rx = mod(Rx, E.p);
+        R->x = Rx;
+
+        Ry = r*(P.x - Rx) - P.y;
+        Ry = mod(Ry, E.p);
+        R -> y = Ry;
+    }
 }
 
 int cmp(mpz_class x, mpz_class y){
@@ -217,13 +237,14 @@ ECDSA_SIG ECDSA_sign(ECDSA_SK sk, mpz_class msg)
     mpz_class k, inv_k, h_m;
     Point R;
     int nBit, mBit;
+    ECDSA_SIG sig;
     gmp_randstate_t state;
     gmp_randinit_mt(state);
 
     do{
         seed = rd();
         gmp_randseed_ui(state, seed);
-        k = randomm(state, sk.n);
+        k = urandomm(state, sk.n);
         EC_mult(sk.E, &R, sk.G, k);
     } while(mod(R.x, sk.n)==0);
 
@@ -235,7 +256,7 @@ ECDSA_SIG ECDSA_sign(ECDSA_SK sk, mpz_class msg)
         cout << "inv_k doesn't exist" << endl;
         ECDSA_sign(sk, msg);
     }
-
+    //Question. else로 안 감싸줘도 괜찮은건지
     sig.S2 = h_m + (sig.S1 * sk.d);
     sig.S2 = mod(sig.S2, sk.n);
     sig.S2 *= inv_k;
@@ -245,21 +266,41 @@ ECDSA_SIG ECDSA_sign(ECDSA_SK sk, mpz_class msg)
     nBit = mpz_sizeinbase(sk.n.get_mpz_t(), 2);
     mBit = mpz_sizeinbase(msg.get_mpz_t(), 2);
     h_m = msg >> max(mBit - nBit, 0); //msgBit에서 nBit를 뺀 값이 0보다 크다면 큰 정도만큼 비트쉬프트해라. 그리고 그 값을 해시값으로 쓰겠다.
+
+    if(mod(sig.S2, sk.n) == 0 || mod_inv(sig.S2, sk.n)==0){
+        cout << "repeat SIGN" << endl;
+        return ECDSA_sign(sk, msg);
+    } else {
+        return sig;
+    }
 }
 
 bool ECDSA_verify(ECDSA_PK pk, ECDSA_SIG sig, mpz_class msg)
 {
-    mpz_class c, u1, u2, nBit, mBit, h_m;
-    Point R;
-    nBit = mpz_sizeinbase(sk.n.get_mpz_t(), 2);
+    mpz_class c, u1, u2, h_m;
+    int nBit, mBit;
+    Point R, R1, R2;
+
+    //해시값 구현
+    nBit = mpz_sizeinbase(pk.n.get_mpz_t(), 2);
     mBit = mpz_sizeinbase(msg.get_mpz_t(), 2);
     h_m = msg >> max(mBit - nBit, 0);
-    c = mod_inv(sig.S2, pk.n);
-    u1 = h_m*c;
+    cout << pk.Q.x << ", " << pk.Q.y << endl;
+    
+    c = mod_inv(sig.S2, pk.n); // c = S2^-1 mod n
+    u1 = h_m*c; // u1 = h(m)*c mod n
     u1 = mod(u1, pk.n);
-    u2 = sig.S1 * c;
+    cout << u1 << endl;
+    u2 = sig.S1 * c; //u2 = S1*c mod n
     u2 = mod(u2, pk.n);
-    //대충 mult, add
+    cout << u2 << endl;
+
+    EC_mult(pk.E, &R1, pk.G, u1); // R1 = u1 * G
+    cout << R1.x << ", " << R1.y << endl;
+    EC_mult(pk.E, &R2, pk.Q, u2); // R2 = u2 * Q
+    cout << R2.x << ", " << R2.y << endl;
+    EC_add(pk.E, &R, R1, R2); // R = R1 + R2
+    cout << R.x << ", " << R.y << endl;
 
     if(R.x==0 && R.y==0){
         cout << "Point of Infinity" << endl;
